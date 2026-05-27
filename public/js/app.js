@@ -23,6 +23,16 @@ let teacherAvatarGroup = null;
 let teacherPointer = null; // animated pointer stick
 let classroomState = { boardLetters: [], currentHighlight: -1, teacher: null, students: [] };
 
+// Teacher avatar position and facing angles
+const TEACHER_BASE_X   = 8.5;
+const TEACHER_BASE_Z   = -12.5;
+const TEACHER_ROT_DEFAULT = Math.PI * 0.70; // neutral — mostly facing students at an angle
+const TEACHER_ROT_BOARD   = Math.PI * 0.05; // facing board to write
+const TEACHER_ROT_SPEAK   = Math.PI * 0.83; // fully facing students when speaking
+let teacherFaceTarget  = TEACHER_ROT_DEFAULT;
+let teacherWritingTimer = null;
+let teacherSpeaking    = false;
+
 // Board font size (synced via server)
 const FONT_SIZES = { small: 56, medium: 80, large: 112 };
 let boardFontSize = 56;
@@ -788,14 +798,218 @@ function buildDecorations() {
 
 // --- Teacher Avatar ---
 function buildTeacherAvatar() {
-  const group = createAvatar('#1a237e', '#f5cba7', 0x3c1a08, true);
+  const group = createDetailedTeacherAvatar();
   group.scale.set(2.8, 2.8, 2.8);
-  // y=-0.88 brings shoe-bottom (local≈0.315) to floor level after ×2.8 scale
-  group.position.set(0, -0.88, -12.0);
-  group.rotation.y = Math.PI; // face students
+  group.position.set(TEACHER_BASE_X, -0.88, TEACHER_BASE_Z);
+  group.rotation.y = TEACHER_ROT_DEFAULT;
   scene.add(group);
   teacherAvatarGroup = group;
   avatarGroups['__teacher__'] = group;
+}
+
+function createDetailedTeacherAvatar() {
+  const group = new THREE.Group();
+
+  // ── Materials ──
+  const skinMat   = new THREE.MeshPhongMaterial({ color: 0xf5c9a0, shininess: 22 });
+  const hairMat   = new THREE.MeshPhongMaterial({ color: 0x2c1a0e });
+  const browMat   = new THREE.MeshPhongMaterial({ color: 0x2c1a0e });
+  const scleraMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
+  const irisMat   = new THREE.MeshPhongMaterial({ color: 0x5c3d1e });
+  const pupilMat  = new THREE.MeshPhongMaterial({ color: 0x080808 });
+  const mouthMat  = new THREE.MeshPhongMaterial({ color: 0xb56060 });
+  const jacketMat = new THREE.MeshPhongMaterial({ color: 0x1a237e, shininess: 14 });
+  const shirtMat  = new THREE.MeshPhongMaterial({ color: 0xffffff });
+  const tieMat    = new THREE.MeshPhongMaterial({ color: 0x8b0000 });
+  const pantsMat  = new THREE.MeshPhongMaterial({ color: 0x263238 });
+  const shoeMat   = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 55 });
+  const beltMat   = new THREE.MeshPhongMaterial({ color: 0x111111 });
+  const buckMat   = new THREE.MeshPhongMaterial({ color: 0xb8860b, shininess: 80 });
+
+  // ── HEAD ──
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.175, 16, 12), skinMat);
+  head.scale.set(0.94, 1.06, 0.92);
+  head.position.set(0, 1.72, 0);
+  head.castShadow = true;
+
+  // Chin/jaw definition
+  const chin = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), skinMat);
+  chin.scale.set(0.88, 0.52, 0.82);
+  chin.position.set(0, 1.565, 0.01);
+
+  // ── EARS ──
+  const earGeo = new THREE.SphereGeometry(0.058, 8, 6);
+  const lEar = new THREE.Mesh(earGeo, skinMat);
+  lEar.scale.set(0.42, 0.65, 0.32);
+  lEar.position.set(-0.184, 1.71, 0.01);
+  const rEar = lEar.clone();
+  rEar.position.set(0.184, 1.71, 0.01);
+
+  // ── HAIR — top cap + sides + back ──
+  const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.178, 14, 8), hairMat);
+  hairTop.scale.set(0.96, 0.50, 0.94);
+  hairTop.position.set(0, 1.868, 0.01);
+
+  const hairL = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), hairMat);
+  hairL.scale.set(0.48, 0.72, 0.78);
+  hairL.position.set(-0.162, 1.828, 0.02);
+  const hairR = hairL.clone(); hairR.position.set(0.162, 1.828, 0.02);
+
+  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.168, 12, 8), hairMat);
+  hairBack.scale.set(0.88, 0.56, 0.46);
+  hairBack.position.set(0, 1.815, 0.092);
+
+  // ── EYEBROWS ──
+  const browGeo = new THREE.BoxGeometry(0.072, 0.013, 0.016);
+  const lBrow = new THREE.Mesh(browGeo, browMat);
+  lBrow.position.set(-0.062, 1.775, -0.157);
+  lBrow.rotation.z = 0.14;
+  const rBrow = new THREE.Mesh(browGeo, browMat);
+  rBrow.position.set(0.062, 1.775, -0.157);
+  rBrow.rotation.z = -0.14;
+
+  // ── EYES — sclera + iris + pupil ──
+  function makeEye(xOff) {
+    const g = new THREE.Group();
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.034, 10, 8), scleraMat);
+    const iris   = new THREE.Mesh(new THREE.SphereGeometry(0.023, 10, 8), irisMat);
+    iris.position.z = -0.016;
+    const pupil  = new THREE.Mesh(new THREE.SphereGeometry(0.013, 8, 6), pupilMat);
+    pupil.position.z = -0.026;
+    g.add(sclera, iris, pupil);
+    g.position.set(xOff, 1.732, -0.160);
+    return g;
+  }
+  const lEye = makeEye(-0.064);
+  const rEye = makeEye(0.064);
+
+  // ── NOSE ──
+  const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.027, 8, 6), skinMat);
+  noseTip.scale.set(0.8, 0.62, 0.68);
+  noseTip.position.set(0, 1.694, -0.174);
+
+  const noseBridge = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.042, 0.020), skinMat);
+  noseBridge.position.set(0, 1.722, -0.170);
+
+  // ── MOUTH ──
+  const upperLip = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.014, 0.016), mouthMat);
+  upperLip.position.set(0, 1.670, -0.166);
+  const lowerLip = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6), mouthMat);
+  lowerLip.scale.set(1.38, 0.48, 0.48);
+  lowerLip.position.set(0, 1.659, -0.166);
+
+  // ── NECK ──
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.074, 0.084, 0.118, 10), skinMat);
+  neck.position.set(0, 1.576, 0);
+
+  // ── SHIRT COLLAR ──
+  const collarL = new THREE.Mesh(new THREE.BoxGeometry(0.090, 0.115, 0.024), shirtMat);
+  collarL.position.set(-0.038, 1.482, -0.100); collarL.rotation.y = 0.28;
+  const collarR = new THREE.Mesh(new THREE.BoxGeometry(0.090, 0.115, 0.024), shirtMat);
+  collarR.position.set(0.038, 1.482, -0.100); collarR.rotation.y = -0.28;
+
+  // ── TORSO — jacket ──
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.43, 0.52, 0.24), jacketMat);
+  torso.position.set(0, 1.28, 0); torso.castShadow = true;
+
+  // Lapels
+  const lapelL = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.185, 0.026), jacketMat);
+  lapelL.position.set(-0.058, 1.383, -0.118); lapelL.rotation.z = 0.26;
+  const lapelR = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.185, 0.026), jacketMat);
+  lapelR.position.set(0.058, 1.383, -0.118); lapelR.rotation.z = -0.26;
+
+  // White shirt strip between lapels
+  const shirtFront = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.38, 0.026), shirtMat);
+  shirtFront.position.set(0, 1.265, -0.118);
+
+  // Tie
+  const tieKnot  = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.042, 0.030), tieMat);
+  tieKnot.position.set(0, 1.452, -0.122);
+  const tieBlade = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.220, 0.022), tieMat);
+  tieBlade.position.set(0, 1.302, -0.122);
+
+  // Shoulder rounds
+  const shlGeo = new THREE.SphereGeometry(0.100, 10, 8);
+  const shlL = new THREE.Mesh(shlGeo, jacketMat); shlL.scale.set(0.78, 0.68, 0.80); shlL.position.set(-0.265, 1.505, 0);
+  const shlR = new THREE.Mesh(shlGeo, jacketMat); shlR.scale.set(0.78, 0.68, 0.80); shlR.position.set( 0.265, 1.505, 0);
+
+  // ── ARMS — cylinders with elbow joints ──
+  function makeArm(side) {
+    const s = side === 'left' ? -1 : 1;
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.074, 0.066, 0.33, 10), jacketMat);
+    upper.position.set(s * 0.263, 1.325, 0); upper.castShadow = true;
+
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.066, 8, 6), jacketMat);
+    elbow.position.set(s * 0.263, 1.142, 0);
+
+    const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.060, 0.053, 0.29, 10), jacketMat);
+    lower.position.set(s * 0.263, 0.975, 0); lower.castShadow = true;
+
+    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.054, 0.052, 0.038, 10), skinMat);
+    wrist.position.set(s * 0.263, 0.832, 0);
+
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.066, 10, 8), skinMat);
+    hand.scale.set(0.86, 0.74, 0.64);
+    hand.position.set(s * 0.263, 0.772, 0); hand.castShadow = true;
+
+    return { upper, elbow, lower, wrist, hand };
+  }
+  const lArm = makeArm('left');
+  const rArm = makeArm('right');
+
+  // Store right arm refs for hand-raise animation
+  group.userData.rArm     = rArm.upper;
+  group.userData.rForearm = rArm.lower;
+  group.userData.rHand    = rArm.hand;
+  group.userData.handRaised = false;
+
+  // ── BELT ──
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.038, 0.245), beltMat);
+  belt.position.set(0, 1.038, 0);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.034, 0.026), buckMat);
+  buckle.position.set(0, 1.038, -0.122);
+
+  // ── LEGS — cylinders with knee joints ──
+  function makeLeg(side) {
+    const s = side === 'left' ? -1 : 1;
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.090, 0.080, 0.37, 10), pantsMat);
+    thigh.position.set(s * 0.115, 0.838, 0); thigh.castShadow = true;
+
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.080, 8, 6), pantsMat);
+    knee.position.set(s * 0.115, 0.644, 0);
+
+    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.063, 0.35, 10), pantsMat);
+    shank.position.set(s * 0.115, 0.462, 0); shank.castShadow = true;
+
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.140, 0.078, 0.235), shoeMat);
+    shoe.position.set(s * 0.115, 0.276, -0.038);
+
+    const toe = new THREE.Mesh(new THREE.SphereGeometry(0.068, 8, 6), shoeMat);
+    toe.scale.set(0.88, 0.52, 0.72);
+    toe.position.set(s * 0.115, 0.278, -0.143);
+
+    return { thigh, knee, shank, shoe, toe };
+  }
+  const lLeg = makeLeg('left');
+  const rLeg = makeLeg('right');
+
+  // ── Assemble ──
+  group.add(
+    head, chin, lEar, rEar,
+    hairTop, hairL, hairR, hairBack,
+    lBrow, rBrow, lEye, rEye,
+    noseTip, noseBridge, upperLip, lowerLip,
+    neck, collarL, collarR,
+    torso, lapelL, lapelR, shirtFront, tieKnot, tieBlade,
+    shlL, shlR,
+    lArm.upper, lArm.elbow, lArm.lower, lArm.wrist, lArm.hand,
+    rArm.upper, rArm.elbow, rArm.lower, rArm.wrist, rArm.hand,
+    belt, buckle,
+    lLeg.thigh, lLeg.knee, lLeg.shank, lLeg.shoe, lLeg.toe,
+    rLeg.thigh, rLeg.knee, rLeg.shank, rLeg.shoe, rLeg.toe
+  );
+
+  return group;
 }
 
 // =============================================
@@ -886,80 +1100,209 @@ function createAvatar(shirtHex, skinHex, hairHex, isTeacher) {
 }
 
 function createSeatedAvatar(shirtHex, skinHex, hairHex) {
-  // Built from scratch — not a modified standing avatar.
-  // Group origin = floor (y=0). Chair seat top is at y=0.49.
   const group = new THREE.Group();
 
-  const skinColor  = typeof skinHex  === 'string' ? parseInt(skinHex.replace('#',''),16)  : skinHex;
+  const skinColor  = typeof skinHex  === 'string' ? parseInt(skinHex.replace('#',''),16) : skinHex;
   const shirtColor = typeof shirtHex === 'string' ? parseInt(shirtHex.replace('#',''),16) : shirtHex;
 
-  const skinMat  = new THREE.MeshPhongMaterial({ color: skinColor,  shininess: 20 });
-  const hairMat  = new THREE.MeshPhongMaterial({ color: hairHex });
-  const shirtMat = new THREE.MeshPhongMaterial({ color: shirtColor });
-  const pantsMat = new THREE.MeshPhongMaterial({ color: 0x37474f });
-  const shoeMat  = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
-  const eyeMat   = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+  // ── Materials ──
+  const skinMat   = new THREE.MeshPhongMaterial({ color: skinColor,  shininess: 22 });
+  const hairMat   = new THREE.MeshPhongMaterial({ color: hairHex });
+  const browMat   = new THREE.MeshPhongMaterial({ color: hairHex });
+  const scleraMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
+  const irisMat   = new THREE.MeshPhongMaterial({ color: 0x4a3728 });
+  const pupilMat  = new THREE.MeshPhongMaterial({ color: 0x080808 });
+  const mouthMat  = new THREE.MeshPhongMaterial({ color: 0xb56060 });
+  const shirtMat  = new THREE.MeshPhongMaterial({ color: shirtColor });
+  const pantsMat  = new THREE.MeshPhongMaterial({ color: 0x37474f });
+  const shoeMat   = new THREE.MeshPhongMaterial({ color: 0x1a1a1a, shininess: 40 });
 
-  const seatY = 0.50; // pelvis height (just above chair seat)
+  const seatY = 0.50;
 
-  // Head (seated eye-level ~1.2m)
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), skinMat);
+  // ── HEAD ──
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.170, 16, 12), skinMat);
+  head.scale.set(0.94, 1.05, 0.92);
   head.position.set(0, 1.18, 0);
+  head.castShadow = true;
 
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.185, 14, 8), hairMat);
-  hair.position.set(0, 1.28, 0); hair.scale.set(1, 0.55, 1);
+  const chin = new THREE.Mesh(new THREE.SphereGeometry(0.110, 10, 8), skinMat);
+  chin.scale.set(0.88, 0.50, 0.82);
+  chin.position.set(0, 1.068, 0.010);
 
-  // Eyes face –z (toward board)
-  const eyeGeo = new THREE.SphereGeometry(0.028, 6, 6);
-  const leftEye  = new THREE.Mesh(eyeGeo, eyeMat); leftEye.position.set(-0.065, 1.19, -0.15);
-  const rightEye = new THREE.Mesh(eyeGeo, eyeMat); rightEye.position.set(0.065,  1.19, -0.15);
+  // Ears
+  const earGeo = new THREE.SphereGeometry(0.056, 8, 6);
+  const lEar = new THREE.Mesh(earGeo, skinMat);
+  lEar.scale.set(0.42, 0.64, 0.30);
+  lEar.position.set(-0.180, 1.178, 0.010);
+  const rEar = lEar.clone();
+  rEar.position.set(0.180, 1.178, 0.010);
 
-  // Torso (upright)
-  const torso = makeMesh([0.36, 0.46, 0.20], shirtMat, [0, seatY + 0.23, 0]);
+  // Hair — top cap + sides + back
+  const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.175, 14, 8), hairMat);
+  hairTop.scale.set(0.96, 0.50, 0.94);
+  hairTop.position.set(0, 1.322, 0.010);
 
-  // Upper arms
-  const lArm = makeMesh([0.10, 0.30, 0.10], shirtMat, [-0.24, seatY + 0.25, 0]);
-  const rArm = makeMesh([0.10, 0.30, 0.10], shirtMat, [ 0.24, seatY + 0.25, 0]);
+  const hairL = new THREE.Mesh(new THREE.SphereGeometry(0.110, 10, 8), hairMat);
+  hairL.scale.set(0.48, 0.70, 0.76);
+  hairL.position.set(-0.158, 1.284, 0.020);
+  const hairR = hairL.clone(); hairR.position.set(0.158, 1.284, 0.020);
 
-  // Forearms rest forward on desk (–z)
-  const lForearm = makeMesh([0.09, 0.10, 0.26], skinMat, [-0.22, seatY + 0.07, -0.14]);
-  const rForearm = makeMesh([0.09, 0.10, 0.26], skinMat, [ 0.22, seatY + 0.07, -0.14]);
+  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.165, 12, 8), hairMat);
+  hairBack.scale.set(0.88, 0.55, 0.46);
+  hairBack.position.set(0, 1.272, 0.088);
+
+  // Eyebrows
+  const browGeo = new THREE.BoxGeometry(0.068, 0.012, 0.015);
+  const lBrow = new THREE.Mesh(browGeo, browMat);
+  lBrow.position.set(-0.060, 1.232, -0.154); lBrow.rotation.z = 0.14;
+  const rBrow = new THREE.Mesh(browGeo, browMat);
+  rBrow.position.set(0.060, 1.232, -0.154); rBrow.rotation.z = -0.14;
+
+  // Eyes — sclera + iris + pupil, facing –z (toward board)
+  function makeEye(xOff) {
+    const g = new THREE.Group();
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), scleraMat);
+    const iris   = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), irisMat);
+    iris.position.z = -0.015;
+    const pupil  = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), pupilMat);
+    pupil.position.z = -0.025;
+    g.add(sclera, iris, pupil);
+    g.position.set(xOff, 1.188, -0.156);
+    return g;
+  }
+  const lEye = makeEye(-0.062);
+  const rEye = makeEye(0.062);
+
+  // Nose
+  const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), skinMat);
+  noseTip.scale.set(0.80, 0.60, 0.66);
+  noseTip.position.set(0, 1.152, -0.170);
+
+  const noseBridge = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.040, 0.018), skinMat);
+  noseBridge.position.set(0, 1.178, -0.166);
+
+  // Mouth
+  const upperLip = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.013, 0.015), mouthMat);
+  upperLip.position.set(0, 1.128, -0.163);
+  const lowerLip = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), mouthMat);
+  lowerLip.scale.set(1.35, 0.48, 0.48);
+  lowerLip.position.set(0, 1.118, -0.163);
+
+  // Neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.070, 0.080, 0.112, 10), skinMat);
+  neck.position.set(0, 1.040, 0);
+
+  // ── TORSO ──
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.46, 0.21), shirtMat);
+  torso.position.set(0, seatY + 0.23, 0); torso.castShadow = true;
+
+  // Collar
+  const collarL = new THREE.Mesh(new THREE.BoxGeometry(0.076, 0.095, 0.022), shirtMat);
+  collarL.position.set(-0.032, seatY + 0.38, -0.095); collarL.rotation.y = 0.22;
+  const collarR = new THREE.Mesh(new THREE.BoxGeometry(0.076, 0.095, 0.022), shirtMat);
+  collarR.position.set(0.032, seatY + 0.38, -0.095); collarR.rotation.y = -0.22;
+
+  // Shoulder rounds
+  const shlGeo = new THREE.SphereGeometry(0.094, 10, 8);
+  const shlL = new THREE.Mesh(shlGeo, shirtMat);
+  shlL.scale.set(0.76, 0.66, 0.76); shlL.position.set(-0.245, seatY + 0.36, 0);
+  const shlR = new THREE.Mesh(shlGeo, shirtMat);
+  shlR.scale.set(0.76, 0.66, 0.76); shlR.position.set(0.245, seatY + 0.36, 0);
+
+  // ── ARMS ──
+  // Upper arms — vertical cylinders
+  const uaGeo = new THREE.CylinderGeometry(0.068, 0.062, 0.30, 10);
+  const lUArm = new THREE.Mesh(uaGeo, shirtMat);
+  lUArm.position.set(-0.246, seatY + 0.23, 0); lUArm.castShadow = true;
+  const rUArm = new THREE.Mesh(uaGeo, shirtMat);
+  rUArm.position.set(0.246, seatY + 0.23, 0); rUArm.castShadow = true;
+
+  // Elbow joints
+  const elbL = new THREE.Mesh(new THREE.SphereGeometry(0.062, 8, 6), shirtMat);
+  elbL.position.set(-0.246, seatY + 0.07, 0);
+  const elbR = new THREE.Mesh(new THREE.SphereGeometry(0.062, 8, 6), shirtMat);
+  elbR.position.set(0.246, seatY + 0.07, 0);
+
+  // Forearms — horizontal cylinders resting forward on desk (–z)
+  const faGeo = new THREE.CylinderGeometry(0.055, 0.050, 0.26, 10);
+  const lForearm = new THREE.Mesh(faGeo, skinMat);
+  lForearm.rotation.x = Math.PI / 2;
+  lForearm.position.set(-0.226, seatY + 0.060, -0.155);
+  const rForearm = new THREE.Mesh(faGeo, skinMat);
+  rForearm.rotation.x = Math.PI / 2;
+  rForearm.position.set(0.226, seatY + 0.060, -0.155);
 
   // Hands
-  const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), skinMat);
-  lHand.position.set(-0.20, seatY + 0.06, -0.27);
-  const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), skinMat);
-  rHand.position.set( 0.20, seatY + 0.06, -0.27);
+  const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.058, 10, 8), skinMat);
+  lHand.scale.set(0.85, 0.72, 0.62);
+  lHand.position.set(-0.210, seatY + 0.058, -0.274);
+  const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.058, 10, 8), skinMat);
+  rHand.scale.set(0.85, 0.72, 0.62);
+  rHand.position.set(0.210, seatY + 0.058, -0.274);
 
-  // Thighs — horizontal in –z (toward board), resting on seat
+  // ── LEGS (seated) ──
   const thighLen = 0.38;
-  const thighY   = seatY - 0.04; // 0.46
-  const lThigh = makeMesh([0.155, 0.12, thighLen], pantsMat, [-0.10, thighY, -thighLen / 2]);
-  const rThigh = makeMesh([0.155, 0.12, thighLen], pantsMat, [ 0.10, thighY, -thighLen / 2]);
+  const thighY   = seatY - 0.04;
 
-  // Shins — hang straight DOWN at local z=+0.12 (visible from behind)
-  const shinLen = 0.36;
-  const shinY   = thighY - shinLen / 2; // center of shin
-  const lShank = makeMesh([0.12, shinLen, 0.12], pantsMat, [-0.10, shinY, 0.12]);
-  const rShank = makeMesh([0.12, shinLen, 0.12], pantsMat, [ 0.10, shinY, 0.12]);
+  // Thighs — horizontal cylinders pointing forward (–z)
+  const thGeo = new THREE.CylinderGeometry(0.080, 0.072, thighLen, 10);
+  const lThigh = new THREE.Mesh(thGeo, pantsMat);
+  lThigh.rotation.x = Math.PI / 2;
+  lThigh.position.set(-0.108, thighY, -thighLen / 2); lThigh.castShadow = true;
+  const rThigh = new THREE.Mesh(thGeo, pantsMat);
+  rThigh.rotation.x = Math.PI / 2;
+  rThigh.position.set(0.108, thighY, -thighLen / 2); rThigh.castShadow = true;
 
-  // Shoes — at base of shins, pointing slightly toward board
-  const footY = thighY - shinLen + 0.04;
-  const lShoe = makeMesh([0.14, 0.09, 0.22], shoeMat, [-0.10, footY, 0.06]);
-  const rShoe = makeMesh([0.14, 0.09, 0.22], shoeMat, [ 0.10, footY, 0.06]);
+  // Knee joints
+  const lKnee = new THREE.Mesh(new THREE.SphereGeometry(0.072, 8, 6), pantsMat);
+  lKnee.position.set(-0.108, thighY, 0.025);
+  const rKnee = new THREE.Mesh(new THREE.SphereGeometry(0.072, 8, 6), pantsMat);
+  rKnee.position.set(0.108, thighY, 0.025);
 
-  group.add(head, hair, leftEye, rightEye, torso,
-            lArm, rArm, lForearm, rForearm, lHand, rHand,
-            lThigh, rThigh, lShank, rShank, lShoe, rShoe);
+  // Shins — vertical cylinders hanging down
+  const shinLen = 0.34;
+  const shinY   = thighY - shinLen / 2;
+  const shGeo = new THREE.CylinderGeometry(0.065, 0.056, shinLen, 10);
+  const lShank = new THREE.Mesh(shGeo, pantsMat);
+  lShank.position.set(-0.108, shinY, 0.110); lShank.castShadow = true;
+  const rShank = new THREE.Mesh(shGeo, pantsMat);
+  rShank.position.set(0.108, shinY, 0.110); rShank.castShadow = true;
 
-  [head, hair, torso, lArm, rArm, lForearm, rForearm,
+  // Shoes + toe bumps
+  const footY = thighY - shinLen + 0.040;
+  const lShoe = new THREE.Mesh(new THREE.BoxGeometry(0.132, 0.076, 0.218), shoeMat);
+  lShoe.position.set(-0.108, footY, 0.072);
+  const lToe = new THREE.Mesh(new THREE.SphereGeometry(0.064, 8, 6), shoeMat);
+  lToe.scale.set(0.86, 0.50, 0.70); lToe.position.set(-0.108, footY, -0.026);
+
+  const rShoe = new THREE.Mesh(new THREE.BoxGeometry(0.132, 0.076, 0.218), shoeMat);
+  rShoe.position.set(0.108, footY, 0.072);
+  const rToe = new THREE.Mesh(new THREE.SphereGeometry(0.064, 8, 6), shoeMat);
+  rToe.scale.set(0.86, 0.50, 0.70); rToe.position.set(0.108, footY, -0.026);
+
+  // ── Assemble ──
+  group.add(
+    head, chin, lEar, rEar,
+    hairTop, hairL, hairR, hairBack,
+    lBrow, rBrow, lEye, rEye,
+    noseTip, noseBridge, upperLip, lowerLip,
+    neck, collarL, collarR, shlL, shlR,
+    torso,
+    lUArm, rUArm, elbL, elbR,
+    lForearm, rForearm, lHand, rHand,
+    lThigh, rThigh, lKnee, rKnee,
+    lShank, rShank,
+    lShoe, lToe, rShoe, rToe
+  );
+
+  [head, chin, torso, lUArm, rUArm, lForearm, rForearm,
    lThigh, rThigh, lShank, rShank, lShoe, rShoe].forEach(m => {
     if (m.isMesh) m.castShadow = true;
   });
 
-  group.userData.rArm = rArm;
+  group.userData.rArm     = rUArm;
   group.userData.rForearm = rForearm;
-  group.userData.rHand = rHand;
+  group.userData.rHand    = rHand;
   group.userData.handRaised = false;
   return group;
 }
@@ -1001,9 +1344,12 @@ function getOrCreateStudentAvatar(id, name, seat) {
 function animateAvatars() {
   const t = Date.now() * 0.001;
 
-  // Animate teacher (subtle side sway while teaching)
+  // Animate teacher — smooth rotation toward target facing direction
   if (teacherAvatarGroup && teacherAvatarGroup.visible) {
-    teacherAvatarGroup.position.x = Math.sin(t * 0.35) * 0.4;
+    const cur = teacherAvatarGroup.rotation.y;
+    teacherAvatarGroup.rotation.y = cur + (teacherFaceTarget - cur) * 0.06;
+    // subtle weight-shift: tiny z-sway so teacher looks alive
+    teacherAvatarGroup.position.z = TEACHER_BASE_Z + Math.sin(t * 0.4) * 0.08;
   }
 
   // Animate raised hands
@@ -1234,11 +1580,12 @@ function writeLetterOnBoard(letter) {
   ws.send(JSON.stringify({ type: 'board_add', letter }));
   showToast(`✏ Writing "${letter}" on board`);
 
-  // Teacher turns to face board, writes, then turns back to face students
-  if (teacherAvatarGroup) {
-    teacherAvatarGroup.rotation.y = 0;        // turn to face board
-    setTimeout(() => {
-      if (teacherAvatarGroup) teacherAvatarGroup.rotation.y = Math.PI; // turn back to students
+  // Teacher turns to face board, then returns to neutral after writing
+  if (myRole === 'teacher') {
+    teacherFaceTarget = TEACHER_ROT_BOARD;
+    clearTimeout(teacherWritingTimer);
+    teacherWritingTimer = setTimeout(() => {
+      teacherFaceTarget = teacherSpeaking ? TEACHER_ROT_SPEAK : TEACHER_ROT_DEFAULT;
     }, 1800);
   }
 }
@@ -1367,9 +1714,56 @@ async function initAudio() {
     if (myRole === 'teacher' && classroomState.students.length) {
       syncPeerConnections(classroomState);
     }
+    // Teacher: watch mic level to face students while speaking
+    if (myRole === 'teacher') {
+      startSpeakingDetection();
+    }
   } catch (err) {
     console.warn('Mic error:', err);
     showToast('⚠️ Mic access denied — voice chat disabled');
+  }
+}
+
+function startSpeakingDetection() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.6;
+    const source = audioCtx.createMediaStreamSource(localStream);
+    source.connect(analyser);
+    const dataArr = new Uint8Array(analyser.frequencyBinCount);
+    let silenceFrames = 0;
+
+    function tick() {
+      analyser.getByteFrequencyData(dataArr);
+      const avg = dataArr.reduce((a, b) => a + b, 0) / dataArr.length;
+      const speaking = !micMuted && avg > 12;
+
+      if (speaking) {
+        silenceFrames = 0;
+        if (!teacherSpeaking) {
+          teacherSpeaking = true;
+          // Only face students if not currently writing at board
+          if (teacherFaceTarget !== TEACHER_ROT_BOARD) {
+            teacherFaceTarget = TEACHER_ROT_SPEAK;
+          }
+        }
+      } else {
+        silenceFrames++;
+        // Half-second of silence before returning to neutral
+        if (teacherSpeaking && silenceFrames > 15) {
+          teacherSpeaking = false;
+          if (teacherFaceTarget === TEACHER_ROT_SPEAK) {
+            teacherFaceTarget = TEACHER_ROT_DEFAULT;
+          }
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
+  } catch (e) {
+    console.warn('Speaking detection unavailable:', e);
   }
 }
 
