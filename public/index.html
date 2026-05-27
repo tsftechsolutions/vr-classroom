@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VR Classroom</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>🏫 VR Classroom</h1>
+    <p class="subtitle">Learn the Alphabet in a Virtual Classroom</p>
+    <input type="text" id="name-input" placeholder="Enter your name..." maxlength="24" autocomplete="off">
+    <div class="role-btns">
+      <button class="role-btn teacher" onclick="joinAs('teacher')">
+        <span class="icon">👩‍🏫</span>
+        <span>Teacher</span>
+      </button>
+      <button class="role-btn student" onclick="joinAs('student')">
+        <span class="icon">🧑‍🎓</span>
+        <span>Student</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CLASSROOM APP -->
+<div id="app">
+  <div id="canvas-container"></div>
+
+  <!-- TOP HUD -->
+  <div id="hud-top">
+    <span class="app-title">🏫 VR Classroom</span>
+    <span id="role-badge" class="badge"></span>
+    <span id="user-name-display"></span>
+    <button id="mic-btn" class="mic-btn" onclick="toggleMic()" style="display:none">🎤 Mute</button>
+    <div id="conn-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Connected</span>
+    </div>
+  </div>
+
+  <!-- CAMERA CONTROLS -->
+  <div id="camera-controls">
+    <button class="cam-btn" onclick="setCameraView('studentfront')">🖼️ Front View</button>
+    <button class="cam-btn" onclick="setCameraView('overview')">🌐 Side View</button>
+    <button class="cam-btn" onclick="setCameraView('board')">🔍 Board Close-up</button>
+    <button class="cam-btn" onclick="setCameraView('back')">🔄 Back of Room</button>
+    <button class="cam-btn" id="cam-my-seat" onclick="setCameraView('myseat')" style="display:none">🪑 My Seat</button>
+    <button class="cam-btn" id="cam-atboard" onclick="setCameraView('atboard')" style="display:none">📝 At Board</button>
+    <button class="cam-btn" id="cam-teacher-view" onclick="setCameraView('teacher')" style="display:none">👩‍🏫 Face Class</button>
+  </div>
+
+  <!-- TEACHER PANEL (collapsed by default) -->
+  <div id="teacher-panel">
+    <div class="panel-header" onclick="toggleTeacherPanel()">
+      <span>📝 Write on Blackboard — Click a Letter</span>
+      <span id="teacher-panel-arrow">▲</span>
+    </div>
+    <div id="teacher-panel-body">
+      <div class="alphabet-grid" id="alphabet-grid"></div>
+      <div class="teacher-actions">
+        <button class="action-btn btn-clear" onclick="clearBoard()">🗑️ Clear Board</button>
+        <div class="size-picker">
+          <span class="size-label">Text:</span>
+          <button class="size-btn size-active" id="size-small"  onclick="setBoardFontSize('small')">S</button>
+          <button class="size-btn"             id="size-medium" onclick="setBoardFontSize('medium')">M</button>
+          <button class="size-btn"             id="size-large"  onclick="setBoardFontSize('large')">L</button>
+        </div>
+        <div class="board-scroll-row" id="board-scroll-row" style="display:none">
+          <button class="scroll-btn" id="btn-scroll-up"   onclick="scrollBoardUp()">↑ Older</button>
+          <span id="board-scroll-info" class="board-scroll-info"></span>
+          <button class="scroll-btn" id="btn-scroll-down" onclick="scrollBoardDown()">↓ Latest</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STUDENT PANEL -->
+  <div id="student-panel">
+    <div class="student-actions">
+      <button class="action-btn btn-hand" id="hand-btn" onclick="toggleHand()">✋ Raise Hand</button>
+      <div class="panel-header" onclick="toggleStudentBoard()" style="flex:1;margin-left:14px;">
+        <span>📖 Blackboard</span>
+        <span id="student-board-arrow">▲</span>
+      </div>
+      <span class="seat-info" id="seat-info"></span>
+    </div>
+    <div id="student-board-body">
+      <div class="board-display" id="board-display">
+        <span style="color:#555;font-size:0.8rem;">Waiting for teacher to write...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div id="chat-panel">
+    <div class="chat-panel-header" onclick="toggleChatPanel()">
+      <span>👥 Classroom</span>
+      <span id="chat-panel-arrow">▶</span>
+    </div>
+    <div id="chat-panel-body">
+      <div id="students-list">
+        <h4>Students in Class</h4>
+        <div id="students-items"></div>
+      </div>
+      <div id="chat-messages"></div>
+      <div id="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Say something..." maxlength="200"
+          onkeydown="if(event.key==='Enter') sendChat()">
+        <button id="send-btn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- THREE.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+<script src="js/app.js?v=44"></script>
+
+</body>
+</html>
