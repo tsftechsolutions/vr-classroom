@@ -80,6 +80,7 @@ function joinAs(role) {
     document.getElementById('teacher-panel').style.display = 'block';
     document.getElementById('cam-teacher-view').style.display = 'block';
     document.getElementById('cam-atboard').style.display = 'block';
+    document.getElementById('cam-topics').style.display = 'block';
     buildKeyboard();
   } else {
     document.getElementById('student-panel').style.display = 'block';
@@ -1603,6 +1604,42 @@ function clearBoard() {
   boardScrollLines = 0;
   ws.send(JSON.stringify({ type: 'board_clear' }));
   showToast('Board cleared');
+}
+
+// =============================================
+//  TOPICS
+// =============================================
+const topicCache = {}; // name -> letter array (cached after first fetch)
+
+function toggleTopicsPanel() {
+  const panel = document.getElementById('topics-panel');
+  const btn   = document.getElementById('cam-topics');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'flex' : 'none';
+  btn.classList.toggle('active', open);
+}
+
+async function loadTopic(name) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  try {
+    if (!topicCache[name]) {
+      const res = await fetch(`/documents/${name}.txt`);
+      if (!res.ok) throw new Error('not found');
+      const text = await res.text();
+      topicCache[name] = Array.from(text.trimEnd());
+    }
+    boardScrollLines = 0;
+    ws.send(JSON.stringify({ type: 'board_set', letters: topicCache[name] }));
+
+    // Highlight the active topic button
+    document.querySelectorAll('.topic-list-btn').forEach(b => b.classList.remove('active'));
+    const topicBtn = document.getElementById(`topic-btn-${name}`);
+    if (topicBtn) topicBtn.classList.add('active');
+
+    showToast(`📚 ${name.charAt(0).toUpperCase() + name.slice(1)} loaded`);
+  } catch (e) {
+    showToast(`⚠️ Could not load "${name}"`);
+  }
 }
 
 function setBoardFontSize(mode) {

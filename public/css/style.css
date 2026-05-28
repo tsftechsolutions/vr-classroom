@@ -229,6 +229,50 @@ body {
   color: #fff;
 }
 
+.cam-btn-topics { margin-top: 4px; }
+
+/* ===== TOPICS PANEL ===== */
+#topics-panel {
+  position: fixed;
+  top: 62px;
+  right: 140px;
+  background: rgba(0,0,0,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 150;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.topic-list-btn {
+  padding: 8px 14px;
+  background: rgba(0,0,0,0.65);
+  color: #ddd;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.topic-list-btn:hover {
+  background: rgba(124,111,255,0.3);
+  border-color: #7c6fff;
+  color: #fff;
+}
+.topic-list-btn.active {
+  background: rgba(255,220,50,0.18);
+  border-color: #ffd700;
+  color: #ffd700;
+}
+
 /* ===== TEACHER PANEL ===== */
 #teacher-panel {
   position: fixed;

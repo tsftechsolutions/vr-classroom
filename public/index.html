@@ -52,6 +52,13 @@
     <button class="cam-btn" id="cam-my-seat" onclick="setCameraView('myseat')" style="display:none">🪑 My Seat</button>
     <button class="cam-btn" id="cam-atboard" onclick="setCameraView('atboard')" style="display:none">📝 At Board</button>
     <button class="cam-btn" id="cam-teacher-view" onclick="setCameraView('teacher')" style="display:none">👩‍🏫 Face Class</button>
+    <button class="cam-btn cam-btn-topics" id="cam-topics" onclick="toggleTopicsPanel()" style="display:none">📚 Topics</button>
+  </div>
+
+  <!-- TOPICS PANEL (teacher only) -->
+  <div id="topics-panel" style="display:none">
+    <button class="topic-list-btn" id="topic-btn-alphabets" onclick="loadTopic('alphabets')">🔤 Alphabets</button>
+    <button class="topic-list-btn" id="topic-btn-numbers"   onclick="loadTopic('numbers')">🔢 Numbers</button>
   </div>
 
   <!-- TEACHER PANEL (collapsed by default) -->
@@ -122,7 +129,7 @@
 <!-- THREE.JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
-<script src="js/app.js?v=50"></script>
+<script src="js/app.js?v=54"></script>
 
 </body>
 </html>

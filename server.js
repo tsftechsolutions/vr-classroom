@@ -104,6 +104,16 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'board_set': {
+          if (client.role !== 'teacher') break;
+          if (Array.isArray(msg.letters)) {
+            state.boardLetters = msg.letters.slice(0, 3000);
+            state.currentHighlight = (typeof msg.highlight === 'number') ? msg.highlight : -1;
+            broadcastAll(buildStateMsg());
+          }
+          break;
+        }
+
         case 'board_highlight': {
           if (client.role !== 'teacher') break;
           state.currentHighlight = msg.index;
