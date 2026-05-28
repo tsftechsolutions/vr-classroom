@@ -40,6 +40,11 @@ let boardFontSize = 72;
 // Board scroll state (teacher only — how many lines scrolled up from latest)
 let boardScrollLines = 0;
 
+// 3D Fruit display
+let fruitGroup = null;
+let fruitLabelSprite = null;
+let _lastDisplayedFruit = null;
+
 // WebRTC audio
 let localStream    = null;
 let micMuted       = false;
@@ -1370,6 +1375,12 @@ function animateAvatars() {
       rArm.position.y = 1.32;
     }
   });
+
+  // Animate 3D fruit — slow Y rotation and gentle floating bob
+  if (fruitGroup) {
+    fruitGroup.rotation.y += 0.008;
+    fruitGroup.position.y = 3.5 + Math.sin(Date.now() * 0.0008) * 0.18;
+  }
 }
 
 // =============================================
@@ -1463,6 +1474,13 @@ function updateClassroomState(state) {
   // Update UI
   updateStudentsList(state);
   updateBoardUI(state);
+
+  // Sync 3D fruit display
+  if (state.currentFruit) {
+    displayFruit(state.currentFruit);
+  } else {
+    clearFruitDisplay();
+  }
 
   // Sync WebRTC peer connections (teacher only)
   syncPeerConnections(state);
@@ -1644,6 +1662,273 @@ function scrollBoardUp() {
 function scrollBoardDown() {
   boardScrollLines = Math.max(0, boardScrollLines - 1);
   drawBoard(classroomState.boardLetters, classroomState.currentHighlight);
+}
+
+// =============================================
+//  3D FRUITS
+// =============================================
+const FRUITS = {
+  apple:      { emoji: '🍎', label: 'Apple',      fact: 'Apples are rich in fiber and vitamins — one a day keeps the doctor away!' },
+  banana:     { emoji: '🍌', label: 'Banana',     fact: 'Bananas give quick energy and are full of potassium!' },
+  orange:     { emoji: '🍊', label: 'Orange',     fact: 'Oranges are rich in Vitamin C and help fight colds!' },
+  watermelon: { emoji: '🍉', label: 'Watermelon', fact: 'Watermelons are 92% water — perfect for staying hydrated!' },
+  mango:      { emoji: '🥭', label: 'Mango',      fact: 'Mango is called the King of Fruits in many countries!' },
+  grapes:     { emoji: '🍇', label: 'Grapes',     fact: 'Grapes grow in bunches and can be purple, red, or green!' },
+  strawberry: { emoji: '🍓', label: 'Strawberry', fact: 'Strawberry is the only fruit with seeds on the outside!' },
+};
+
+function buildFruitGeometry(name) {
+  const g = new THREE.Group();
+  if      (name === 'apple')      buildApple(g);
+  else if (name === 'banana')     buildBanana(g);
+  else if (name === 'orange')     buildOrange(g);
+  else if (name === 'watermelon') buildWatermelon(g);
+  else if (name === 'mango')      buildMango(g);
+  else if (name === 'grapes')     buildGrapes(g);
+  else if (name === 'strawberry') buildStrawberry(g);
+  return g;
+}
+
+function buildApple(g) {
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.46, 20, 16),
+    new THREE.MeshPhongMaterial({ color: 0xcc1111, shininess: 60 })
+  );
+  body.scale.set(1, 0.88, 1);
+  g.add(body);
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.030, 0.22, 8),
+    new THREE.MeshPhongMaterial({ color: 0x5d3a1a })
+  );
+  stem.position.set(0.05, 0.45, 0);
+  stem.rotation.z = -0.20;
+  g.add(stem);
+  const leaf = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15, 10, 8),
+    new THREE.MeshPhongMaterial({ color: 0x2e8b22 })
+  );
+  leaf.scale.set(1.3, 0.20, 0.55);
+  leaf.position.set(0.16, 0.49, 0);
+  leaf.rotation.z = -0.3;
+  g.add(leaf);
+}
+
+function buildBanana(g) {
+  const mat = new THREE.MeshPhongMaterial({ color: 0xffe135, shininess: 35 });
+  // Partial torus arc creates the banana curve in the XY plane
+  const banana = new THREE.Mesh(
+    new THREE.TorusGeometry(0.36, 0.105, 8, 24, Math.PI * 0.70),
+    mat
+  );
+  banana.rotation.z = -0.28;
+  g.add(banana);
+  const tipMat = new THREE.MeshPhongMaterial({ color: 0x7a5200 });
+  const tip1 = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), tipMat);
+  tip1.scale.set(0.7, 1.3, 0.7);
+  tip1.position.set(0.36, -0.10, 0);
+  g.add(tip1);
+  const tip2 = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), tipMat);
+  tip2.scale.set(0.6, 1.3, 0.6);
+  tip2.position.set(-0.26, 0.28, 0);
+  g.add(tip2);
+}
+
+function buildOrange(g) {
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.46, 20, 16),
+    new THREE.MeshPhongMaterial({ color: 0xff7700, shininess: 30 })
+  );
+  g.add(body);
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022, 0.028, 0.12, 8),
+    new THREE.MeshPhongMaterial({ color: 0x4a2800 })
+  );
+  stem.position.set(0, 0.48, 0);
+  g.add(stem);
+  const navel = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 10, 8),
+    new THREE.MeshPhongMaterial({ color: 0xdd6600 })
+  );
+  navel.position.set(0, -0.43, 0);
+  g.add(navel);
+}
+
+function buildWatermelon(g) {
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.55, 20, 16),
+    new THREE.MeshPhongMaterial({ color: 0x2d8c2d, shininess: 25 })
+  );
+  body.scale.set(1.25, 0.78, 1.0);
+  g.add(body);
+  const stripeMat = new THREE.MeshPhongMaterial({ color: 0x1a5e1a });
+  for (let i = 0; i < 3; i++) {
+    const stripe = new THREE.Mesh(
+      new THREE.TorusGeometry(0.52, 0.024, 6, 24),
+      stripeMat
+    );
+    stripe.rotation.y = (i / 3) * Math.PI;
+    g.add(stripe);
+  }
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.018, 0.022, 0.14, 8),
+    new THREE.MeshPhongMaterial({ color: 0x4a2800 })
+  );
+  stem.position.set(0, 0.44, 0);
+  g.add(stem);
+}
+
+function buildMango(g) {
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.44, 20, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffaa00, shininess: 50 })
+  );
+  body.scale.set(0.82, 1.28, 0.75);
+  g.add(body);
+  const blush = new THREE.Mesh(
+    new THREE.SphereGeometry(0.32, 12, 10),
+    new THREE.MeshPhongMaterial({ color: 0xff5500, transparent: true, opacity: 0.50 })
+  );
+  blush.scale.set(0.9, 1.0, 0.7);
+  blush.position.set(-0.14, 0.05, -0.18);
+  g.add(blush);
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022, 0.030, 0.20, 8),
+    new THREE.MeshPhongMaterial({ color: 0x4a2800 })
+  );
+  stem.position.set(0, 0.58, 0);
+  g.add(stem);
+  const leaf = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 10, 8),
+    new THREE.MeshPhongMaterial({ color: 0x228b22 })
+  );
+  leaf.scale.set(1.4, 0.18, 0.50);
+  leaf.position.set(0.14, 0.62, 0);
+  leaf.rotation.z = -0.3;
+  g.add(leaf);
+}
+
+function buildGrapes(g) {
+  const mat = new THREE.MeshPhongMaterial({ color: 0x6b2fa0, shininess: 55 });
+  const positions = [
+    [0,    -0.28, 0],   [0.22, -0.28, 0],  [-0.22, -0.28, 0],
+    [0.11, -0.08, 0.04], [-0.11, -0.08, 0.04],
+    [0,    0.10,  0.06], [0.18,  0.10,  0.06], [-0.18, 0.10, 0.06],
+    [0,    0.27,  0.08],
+  ];
+  positions.forEach(([x, y, z]) => {
+    const grape = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), mat);
+    grape.position.set(x, y, z);
+    g.add(grape);
+  });
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.020, 0.025, 0.20, 8),
+    new THREE.MeshPhongMaterial({ color: 0x4a2800 })
+  );
+  stem.position.set(0, 0.44, 0.08);
+  g.add(stem);
+  const leaf = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 10, 8),
+    new THREE.MeshPhongMaterial({ color: 0x228b22 })
+  );
+  leaf.scale.set(1.5, 0.18, 0.80);
+  leaf.position.set(-0.18, 0.49, 0.08);
+  leaf.rotation.z = 0.35;
+  g.add(leaf);
+}
+
+function buildStrawberry(g) {
+  const body = new THREE.Mesh(
+    new THREE.ConeGeometry(0.34, 0.68, 14),
+    new THREE.MeshPhongMaterial({ color: 0xdd1133, shininess: 40 })
+  );
+  body.rotation.x = Math.PI; // point downward
+  body.position.y = 0.02;
+  g.add(body);
+  // Seeds on surface
+  const seedMat = new THREE.MeshPhongMaterial({ color: 0xffee66 });
+  [
+    [0, -0.05, 0.32], [0.15,  0.08, 0.27], [-0.15, 0.08, 0.27],
+    [0.20, -0.15, 0.20], [-0.20, -0.15, 0.20],
+  ].forEach(([sx, sy, sz]) => {
+    const seed = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 4), seedMat);
+    seed.position.set(sx, sy, sz);
+    g.add(seed);
+  });
+  // Green leaves on top
+  const leafMat = new THREE.MeshPhongMaterial({ color: 0x228b22 });
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2;
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), leafMat);
+    leaf.scale.set(0.35, 1.8, 0.35);
+    leaf.position.set(Math.cos(angle) * 0.18, 0.35, Math.sin(angle) * 0.18);
+    leaf.rotation.x = Math.cos(angle) * 0.4;
+    leaf.rotation.z = Math.sin(angle) * 0.4;
+    g.add(leaf);
+  }
+}
+
+function displayFruit(name) {
+  if (_lastDisplayedFruit === name && fruitGroup) return;
+  clearFruitDisplay();
+  _lastDisplayedFruit = name;
+
+  fruitGroup = new THREE.Group();
+  fruitGroup.add(buildFruitGeometry(name));
+
+  // Name + emoji label floating above the fruit
+  const info = FRUITS[name] || { emoji: '', label: name };
+  const label = makeTextSprite(`${info.emoji} ${info.label}`, 1.0);
+  label.position.set(0, 0.88, 0);
+  fruitGroup.add(label);
+  fruitLabelSprite = label;
+
+  fruitGroup.scale.set(1.8, 1.8, 1.8);
+  fruitGroup.position.set(0, 3.5, -12.0);
+  scene.add(fruitGroup);
+
+  // Update teacher UI buttons
+  if (myRole === 'teacher') {
+    document.querySelectorAll('.topic-sub-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.topic-sub-btn[data-fruit="${name}"]`);
+    if (btn) btn.classList.add('active');
+    const hideBtn = document.getElementById('btn-hide-fruit');
+    if (hideBtn) hideBtn.style.display = 'block';
+  }
+}
+
+function clearFruitDisplay() {
+  if (fruitGroup) {
+    scene.remove(fruitGroup);
+    fruitGroup = null;
+    fruitLabelSprite = null;
+  }
+  _lastDisplayedFruit = null;
+  if (myRole === 'teacher') {
+    document.querySelectorAll('.topic-sub-btn').forEach(b => b.classList.remove('active'));
+    const hideBtn = document.getElementById('btn-hide-fruit');
+    if (hideBtn) hideBtn.style.display = 'none';
+  }
+}
+
+function showFruit(name) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'show_fruit', name }));
+  const info = FRUITS[name];
+  if (info) showToast(`${info.emoji} Showing ${info.label}`);
+}
+
+function hideFruit() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'hide_fruit' }));
+}
+
+function toggleFruitsPanel() {
+  const sub = document.getElementById('fruits-submenu');
+  const btn = document.getElementById('fruits-section-btn');
+  if (!sub || !btn) return;
+  const open = sub.style.display === 'none' || sub.style.display === '';
+  sub.style.display = open ? 'flex' : 'none';
+  btn.textContent = open ? '🍎 Fruits ▼' : '🍎 Fruits ▶';
 }
 
 // =============================================

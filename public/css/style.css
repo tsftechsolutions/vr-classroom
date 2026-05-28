@@ -273,6 +273,50 @@ body {
   color: #ffd700;
 }
 
+.topic-separator {
+  height: 1px;
+  background: rgba(255,255,255,0.10);
+  margin: 2px 0;
+}
+
+.topic-section-header {
+  background: rgba(40,25,5,0.85) !important;
+  color: #ffcc66 !important;
+  border-color: rgba(255,190,80,0.28) !important;
+}
+.topic-section-header:hover {
+  background: rgba(75,48,8,0.95) !important;
+  border-color: rgba(255,210,100,0.55) !important;
+  color: #ffd700 !important;
+}
+
+#fruits-submenu {
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 8px;
+}
+
+.topic-sub-btn {
+  font-size: 0.72rem !important;
+  padding: 6px 11px !important;
+}
+.topic-sub-btn.active {
+  background: rgba(255,165,0,0.22) !important;
+  border-color: #ffa500 !important;
+  color: #ffa500 !important;
+}
+
+.btn-hide-fruit {
+  background: rgba(180,40,40,0.30) !important;
+  border-color: rgba(255,90,90,0.38) !important;
+  color: #ef9a9a !important;
+}
+.btn-hide-fruit:hover {
+  background: rgba(205,50,50,0.58) !important;
+  border-color: rgba(255,120,120,0.7) !important;
+  color: #fff !important;
+}
+
 /* ===== TEACHER PANEL ===== */
 #teacher-panel {
   position: fixed;

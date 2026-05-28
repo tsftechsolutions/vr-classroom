@@ -15,7 +15,8 @@ const state = {
   teacher: null,
   students: {},
   chatHistory: [],
-  fontSizeMode: 'small'
+  fontSizeMode: 'small',
+  currentFruit: null
 };
 
 const clients = new Map();
@@ -47,7 +48,8 @@ function buildStateMsg() {
     teacher: state.teacher,
     students: Object.values(state.students),
     chatHistory: state.chatHistory.slice(-50),
-    fontSizeMode: state.fontSizeMode
+    fontSizeMode: state.fontSizeMode,
+    currentFruit: state.currentFruit
   };
 }
 
@@ -138,6 +140,23 @@ wss.on('connection', (ws) => {
           };
           state.chatHistory.push(chatMsg);
           broadcastAll({ type: 'chat_message', ...chatMsg });
+          break;
+        }
+
+        case 'show_fruit': {
+          if (client.role !== 'teacher') break;
+          const validFruits = ['apple','banana','orange','watermelon','mango','grapes','strawberry'];
+          if (validFruits.includes(msg.name)) {
+            state.currentFruit = msg.name;
+            broadcastAll(buildStateMsg());
+          }
+          break;
+        }
+
+        case 'hide_fruit': {
+          if (client.role !== 'teacher') break;
+          state.currentFruit = null;
+          broadcastAll(buildStateMsg());
           break;
         }
 

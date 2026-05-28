@@ -59,6 +59,18 @@
   <div id="topics-panel" style="display:none">
     <button class="topic-list-btn" id="topic-btn-alphabets" onclick="loadTopic('alphabets')">🔤 Alphabets</button>
     <button class="topic-list-btn" id="topic-btn-numbers"   onclick="loadTopic('numbers')">🔢 Numbers</button>
+    <div class="topic-separator"></div>
+    <button class="topic-list-btn topic-section-header" id="fruits-section-btn" onclick="toggleFruitsPanel()">🍎 Fruits ▶</button>
+    <div id="fruits-submenu" style="display:none">
+      <button class="topic-list-btn topic-sub-btn" data-fruit="apple"      onclick="showFruit('apple')">🍎 Apple</button>
+      <button class="topic-list-btn topic-sub-btn" data-fruit="banana"     onclick="showFruit('banana')">🍌 Banana</button>
+      <button class="topic-list-btn topic-sub-btn" data-fruit="orange"     onclick="showFruit('orange')">🍊 Orange</button>
+      <button class="topic-list-btn topic-sub-btn" data-fruit="watermelon" onclick="showFruit('watermelon')">🍉 Watermelon</button>
+      <button class="topic-list-btn topic-sub-btn" data-fruit="mango"      onclick="showFruit('mango')">🥭 Mango</button>
+      <button class="topic-list-btn topic-sub-btn" data-fruit="grapes"     onclick="showFruit('grapes')">🍇 Grapes</button>
+      <button class="topic-list-btn topic-sub-btn" data-fruit="strawberry" onclick="showFruit('strawberry')">🍓 Strawberry</button>
+    </div>
+    <button class="topic-list-btn btn-hide-fruit" id="btn-hide-fruit" onclick="hideFruit()" style="display:none">✕ Hide Fruit</button>
   </div>
 
   <!-- TEACHER PANEL (collapsed by default) -->
@@ -131,7 +143,7 @@
 <!-- THREE.JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
-<script src="js/app.js?v=66"></script>
+<script src="js/app.js?v=68"></script>
 
 </body>
 </html>
