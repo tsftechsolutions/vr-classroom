@@ -181,6 +181,23 @@ function initThreeJS() {
       e.preventDefault();
       keysDown.add(e.key);
     }
+
+    // Physical keyboard → blackboard (teacher only, not when typing in a text field)
+    if (myRole === 'teacher') {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        boardBackspace();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        writeLetterOnBoard('\n');
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Single printable character (letters, numbers, symbols)
+        writeLetterOnBoard(e.key);
+      }
+    }
   });
   window.addEventListener('keyup', (e) => keysDown.delete(e.key));
 
