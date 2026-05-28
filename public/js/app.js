@@ -751,8 +751,6 @@ function buildDecorations() {
   // Alphabet poster on right side of front wall
   const posterMat = new THREE.MeshPhongMaterial({ color: 0xfffde7 });
   scene.add(makeMesh([2.5, 1.8, 0.04], posterMat, [7.5, 3.8, -13.9]));
-  scene.add(makeMesh([2.56, 0.06, 0.05], new THREE.MeshPhongMaterial({ color: 0xff5722 }), [7.5, 4.72, -13.89]));
-  scene.add(makeMesh([2.56, 0.06, 0.05], new THREE.MeshPhongMaterial({ color: 0xff5722 }), [7.5, 2.92, -13.89]));
 
   // Bookshelf on left wall (wall at x=-10)
   const shelfMat = new THREE.MeshPhongMaterial({ color: 0x8B5E3C });
@@ -1430,17 +1428,10 @@ function updateClassroomState(state) {
   // Update board
   drawBoard(state.boardLetters, state.currentHighlight);
 
-  // Update teacher avatar visibility / name
+  // Update teacher avatar visibility
   if (teacherAvatarGroup) {
     if (state.teacher) {
       teacherAvatarGroup.visible = true;
-      const existing = teacherAvatarGroup.children.find(c => c.isSprite);
-      if (!existing) {
-        // scale=0.4 cancels most of the 2.8× group scale so world label stays readable
-        const label = makeTextSprite(state.teacher.name, 0.4);
-        label.position.set(0, 1.9, 0);
-        teacherAvatarGroup.add(label);
-      }
     }
   }
 
