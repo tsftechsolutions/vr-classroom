@@ -69,20 +69,22 @@
     </div>
     <div id="teacher-panel-body">
       <div class="alphabet-grid" id="alphabet-grid"></div>
-      <div class="teacher-actions">
-        <button class="action-btn btn-clear" onclick="clearBoard()">🗑️ Clear Board</button>
-        <div class="size-picker">
-          <span class="size-label">Text:</span>
-          <button class="size-btn size-active" id="size-small"  onclick="setBoardFontSize('small')">S</button>
-          <button class="size-btn"             id="size-medium" onclick="setBoardFontSize('medium')">M</button>
-          <button class="size-btn"             id="size-large"  onclick="setBoardFontSize('large')">L</button>
-        </div>
-        <div class="board-scroll-row" id="board-scroll-row" style="display:none">
-          <button class="scroll-btn" id="btn-scroll-up"   onclick="scrollBoardUp()">↑ Older</button>
-          <span id="board-scroll-info" class="board-scroll-info"></span>
-          <button class="scroll-btn" id="btn-scroll-down" onclick="scrollBoardDown()">↓ Latest</button>
-        </div>
+      <div class="board-scroll-row" id="board-scroll-row" style="display:none">
+        <button class="scroll-btn" id="btn-scroll-up"   onclick="scrollBoardUp()">↑ Older</button>
+        <span id="board-scroll-info" class="board-scroll-info"></span>
+        <button class="scroll-btn" id="btn-scroll-down" onclick="scrollBoardDown()">↓ Latest</button>
       </div>
+    </div>
+  </div>
+
+  <!-- BOARD CONTROLS (teacher only — sits beside the keyboard) -->
+  <div id="board-controls" style="display:none">
+    <button class="action-btn btn-clear" onclick="clearBoard()">🗑️ Clear Board</button>
+    <div class="size-picker">
+      <span class="size-label">Text:</span>
+      <button class="size-btn size-active" id="size-small"  onclick="setBoardFontSize('small')">S</button>
+      <button class="size-btn"             id="size-medium" onclick="setBoardFontSize('medium')">M</button>
+      <button class="size-btn"             id="size-large"  onclick="setBoardFontSize('large')">L</button>
     </div>
   </div>
 
@@ -129,7 +131,7 @@
 <!-- THREE.JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
-<script src="js/app.js?v=54"></script>
+<script src="js/app.js?v=55"></script>
 
 </body>
 </html>

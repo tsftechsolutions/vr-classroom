@@ -401,6 +401,22 @@ body {
   font-size: 0.68rem;
 }
 
+/* Board controls bar — sits to the right of the keyboard at the bottom */
+#board-controls {
+  position: fixed;
+  bottom: 0;
+  left: 432px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 110;
+  background: rgba(0,0,0,0.87);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 14px;
+  backdrop-filter: blur(10px);
+}
+
 .teacher-actions {
   display: flex;
   gap: 10px;

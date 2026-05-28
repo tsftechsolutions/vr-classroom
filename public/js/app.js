@@ -81,6 +81,7 @@ function joinAs(role) {
     document.getElementById('cam-teacher-view').style.display = 'block';
     document.getElementById('cam-atboard').style.display = 'block';
     document.getElementById('cam-topics').style.display = 'block';
+    document.getElementById('board-controls').style.display = 'flex';
     buildKeyboard();
   } else {
     document.getElementById('student-panel').style.display = 'block';
