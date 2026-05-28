@@ -12,7 +12,7 @@ let handRaised = false;
 const keysDown = new Set();
 
 // Room boundaries — camera cannot leave these limits (mouse, zoom, or arrow keys)
-const CAM_BOUNDS = { xMin: -11, xMax: 11, yMin: 0.8, yMax: 14, zMin: -15, zMax: 22 };
+const CAM_BOUNDS = { xMin: -14, xMax: 14, yMin: 0.8, yMax: 18, zMin: -19, zMax: 24 };
 
 // 3D Object References
 let boardMesh = null;
@@ -24,8 +24,8 @@ let teacherPointer = null; // animated pointer stick
 let classroomState = { boardLetters: [], currentHighlight: -1, teacher: null, students: [] };
 
 // Teacher avatar position and facing angles
-const TEACHER_BASE_X   = 8.5;
-const TEACHER_BASE_Z   = -12.5;
+const TEACHER_BASE_X   = 11.5;
+const TEACHER_BASE_Z   = -15.0;
 const TEACHER_ROT_DEFAULT = Math.PI * 0.70; // neutral — mostly facing students at an angle
 const TEACHER_ROT_BOARD   = Math.PI * 0.05; // facing board to write
 const TEACHER_ROT_SPEAK   = Math.PI * 0.83; // fully facing students when speaking
@@ -34,8 +34,8 @@ let teacherWritingTimer = null;
 let teacherSpeaking    = false;
 
 // Board font size (synced via server)
-const FONT_SIZES = { small: 56, medium: 80, large: 112 };
-let boardFontSize = 56;
+const FONT_SIZES = { small: 72, medium: 104, large: 148 };
+let boardFontSize = 72;
 
 // Board scroll state (teacher only — how many lines scrolled up from latest)
 let boardScrollLines = 0;
@@ -48,11 +48,11 @@ const peerAudioEls = {};   // peerId -> <audio>
 const iceBuf       = {};   // peerId -> [RTCIceCandidate] buffered before remote desc
 const RTC_CFG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-// Seat layout: 4 rows x 5 cols  (rows at z = -6, -1.5, 3, 7.5)
+// Seat layout: 4 rows x 5 cols  (rows at z = -8, -4, 0, 4)
 const SEATS = [];
 for (let row = 0; row < 4; row++) {
   for (let col = 0; col < 5; col++) {
-    SEATS.push({ x: -6 + col * 3, z: -6 + row * 4.5, row, col, index: row * 5 + col });
+    SEATS.push({ x: -8 + col * 4, z: -8 + row * 4, row, col, index: row * 5 + col });
   }
 }
 
@@ -152,14 +152,14 @@ function initThreeJS() {
   document.getElementById('canvas-container').appendChild(renderer.domElement);
 
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
 
-  // Behind and above the room — all 4 rows + board visible on login
-  camera.position.set(0, 9, 16);
-  camera.lookAt(0, 1.5, -1);
+  // Eye-level overview — board appears straight, all rows visible
+  camera.position.set(0, 5, 13);
+  camera.lookAt(0, 3.5, -4);
 
   controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 1.5, -1);
+  controls.target.set(0, 3.5, -4);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
   controls.maxPolarAngle = Math.PI / 2 - 0.02;
@@ -248,11 +248,11 @@ function animate() {
 // =============================================
 //  CAMERA PRESETS
 // =============================================
-// Room layout (w=20, h=6.5, d=28):
-//   Front wall (board) : z = -14
-//   Teacher position   : z = -12  (between board and students)
-//   Student rows       : z = -3, 1.5, 6, 10.5
-//   Back wall          : z = +14
+// Room layout (w=26, h=8, d=34):
+//   Front wall (board) : z = -17
+//   Teacher position   : z = -15  (beside board)
+//   Student rows       : z = -8, -4, 0, 4
+//   Back wall          : z = +17
 
 function setCameraView(view) {
   document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
@@ -261,35 +261,30 @@ function setCameraView(view) {
   controls.enabled = true;
 
   if (view === 'overview') {
-    // Diagonal corner — whole room visible
-    moveCameraTo(new THREE.Vector3(18, 15, 18), new THREE.Vector3(0, 2, 0));
+    moveCameraTo(new THREE.Vector3(22, 16, 14), new THREE.Vector3(0, 3, -4));
 
   } else if (view === 'studentfront') {
-    // Behind last row (z≈7.5) looking toward board — all rows + teacher visible
-    moveCameraTo(new THREE.Vector3(0, 4.5, 12), new THREE.Vector3(0, 3, -13));
+    // Behind last row (z≈4) looking toward board
+    moveCameraTo(new THREE.Vector3(0, 5, 9), new THREE.Vector3(0, 4, -16));
 
   } else if (view === 'board') {
-    // Close-up of blackboard from mid-room
-    moveCameraTo(new THREE.Vector3(0, 5, 2), new THREE.Vector3(0, 3.6, -13.8));
+    // Close-up of board from mid-class
+    moveCameraTo(new THREE.Vector3(0, 5.5, -3), new THREE.Vector3(0, 4, -16.5));
 
   } else if (view === 'back') {
-    // From back corner looking toward board
-    moveCameraTo(new THREE.Vector3(-8, 9, 16), new THREE.Vector3(0, 2, -1));
+    moveCameraTo(new THREE.Vector3(-10, 10, 10), new THREE.Vector3(0, 3, -4));
 
   } else if (view === 'atboard') {
-    // Side angle: teacher at board with all students behind
-    moveCameraTo(new THREE.Vector3(16, 7, 0), new THREE.Vector3(0, 2, -9));
+    moveCameraTo(new THREE.Vector3(12, 5, -2), new THREE.Vector3(0, 3, -12));
 
   } else if (view === 'myseat' && myRole === 'student' && mySeat >= 0) {
     const s = SEATS[mySeat];
     if (s) {
-      // Eye-level from seat looking toward board
-      moveCameraTo(new THREE.Vector3(s.x, 2.8, s.z + 1.5), new THREE.Vector3(0, 2.0, -13));
+      moveCameraTo(new THREE.Vector3(s.x, 3.2, s.z + 1.5), new THREE.Vector3(0, 3.5, -16));
     }
 
   } else if (view === 'teacher' && myRole === 'teacher') {
-    // Full-room overview from back: board visible, teacher faces camera (=faces students), all rows in frame
-    moveCameraTo(new THREE.Vector3(0, 8, 11), new THREE.Vector3(0, 2, -1));
+    moveCameraTo(new THREE.Vector3(0, 8, 8), new THREE.Vector3(0, 3, -4));
   }
 }
 
@@ -333,10 +328,10 @@ function setupLighting() {
   sun.shadow.bias = -0.001;
   scene.add(sun);
 
-  // 4 ceiling lights (adjusted for h=6.5)
-  const lightPositions = [[-5, 5.5, -6], [5, 5.5, -6], [-5, 5.5, 6], [5, 5.5, 6]];
+  // 6 ceiling lights spread across the larger room
+  const lightPositions = [[-7,7,-8],[7,7,-8],[-7,7,4],[7,7,4],[-7,7,14],[7,7,14]];
   lightPositions.forEach(([x, y, z]) => {
-    const pt = new THREE.PointLight(0xfff8e7, 0.7, 16);
+    const pt = new THREE.PointLight(0xfff8e7, 0.7, 22);
     pt.position.set(x, y, z);
     pt.castShadow = true;
     pt.shadow.mapSize.set(512, 512);
@@ -344,17 +339,17 @@ function setupLighting() {
   });
 
   // Soft wide fill lights flanking the board — no spotlight glare
-  const fillL = new THREE.PointLight(0xfff8e7, 0.6, 14);
-  fillL.position.set(-5, 5, -10);
+  const fillL = new THREE.PointLight(0xfff8e7, 0.65, 18);
+  fillL.position.set(-6, 6.5, -12);
   scene.add(fillL);
-  const fillR = new THREE.PointLight(0xfff8e7, 0.6, 14);
-  fillR.position.set(5, 5, -10);
+  const fillR = new THREE.PointLight(0xfff8e7, 0.65, 18);
+  fillR.position.set(6, 6.5, -12);
   scene.add(fillR);
 }
 
 // --- Room Shell ---
 function buildRoom() {
-  const w = 20, h = 6.5, d = 28;
+  const w = 26, h = 8, d = 34;
 
   const floorMat = new THREE.MeshPhongMaterial({ color: 0x9c7040, shininess: 40 });
   const wallMat  = new THREE.MeshPhongMaterial({ color: 0xfaf0e6, shininess: 5 });
@@ -366,49 +361,47 @@ function buildRoom() {
 
   // Floor tiles overlay (dark lines)
   const tileLineMat = new THREE.MeshPhongMaterial({ color: 0x7a5530, shininess: 20 });
-  for (let xi = -9; xi <= 9; xi += 2) {
+  for (let xi = -12; xi <= 12; xi += 2) {
     scene.add(makeMesh([0.04, 0.01, d], tileLineMat, [xi, 0.005, 0]));
   }
-  for (let zi = -13; zi <= 13; zi += 2) {
+  for (let zi = -16; zi <= 16; zi += 2) {
     scene.add(makeMesh([w, 0.01, 0.04], tileLineMat, [0, 0.005, zi]));
   }
 
-  // Ceiling — PlaneGeometry with normal pointing DOWN so it is visible from inside
-  // but back-face culled when any camera rises above h, leaving overview views unobstructed
+  // Ceiling
   const ceilMat2 = new THREE.MeshPhongMaterial({ color: 0xf2f0eb, shininess: 2 });
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ceilMat2);
-  ceiling.rotation.x = Math.PI / 2;   // flip normal to face –y (downward into room)
+  ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(0, h - 0.01, 0);
   ceiling.receiveShadow = true;
   scene.add(ceiling);
 
   // Ceiling tile grid lines
   const ctMat = new THREE.MeshPhongMaterial({ color: 0xd8d4cc });
-  for (let xi = -8; xi <= 8; xi += 4) {
+  for (let xi = -10; xi <= 10; xi += 4) {
     const tl = new THREE.Mesh(new THREE.PlaneGeometry(0.04, d), ctMat);
     tl.rotation.x = Math.PI / 2;
     tl.position.set(xi, h - 0.005, 0);
     scene.add(tl);
   }
-  for (let zi = -12; zi <= 12; zi += 4) {
+  for (let zi = -14; zi <= 14; zi += 4) {
     const tl = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.04), ctMat);
     tl.rotation.x = Math.PI / 2;
     tl.position.set(0, h - 0.005, zi);
     scene.add(tl);
   }
 
-  // Back wall: low baseboard only (camera sits outside room to see whole interior)
+  // Back wall: low baseboard only
   addWall([w, 0.3, 0.18], [0, 0.15, d/2], wallMat);
 
-  // Front wall: narrow side strips (board is 15 wide in 20-wide room = 2.5 each side)
-  addWall([2.5, h, 0.18], [-8.75, h/2, -d/2], wallMat);   // left of board
-  addWall([2.5, h, 0.18], [8.75, h/2, -d/2], wallMat);    // right of board
-  addWall([w, 0.7, 0.18], [0, h - 0.35, -d/2], wallMat); // top strip (board reaches y≈6.0)
-  addWall([w, 1.6, 0.18], [0, 0.8, -d/2], wallMat);      // bottom strip (board starts y≈1.6)
+  // Front wall: side strips beside the 21.6-wide board in a 26-wide room
+  addWall([2.2, h, 0.18], [-11.9, h/2, -d/2], wallMat);  // left of board
+  addWall([2.2, h, 0.18], [11.9, h/2, -d/2], wallMat);   // right of board
+  addWall([w, 0.9, 0.18], [0, h - 0.45, -d/2], wallMat); // top strip
+  addWall([w, 0.65, 0.18], [0, 0.32, -d/2], wallMat);    // bottom strip
 
-  // Left wall
+  // Left / Right walls
   addWall([0.18, h, d], [-w/2, h/2, 0], wallMat);
-  // Right wall
   addWall([0.18, h, d], [w/2, h/2, 0], wallMat);
 
   // Skirting boards
@@ -418,10 +411,10 @@ function buildRoom() {
   addWall([0.06, 0.12, d], [-w/2 + 0.12, 0.06, 0], skirtMat);
   addWall([0.06, 0.12, d], [w/2 - 0.12, 0.06, 0], skirtMat);
 
-  // Ceiling light fixtures (4 pairs, adjusted for larger room)
+  // Ceiling light fixtures (6 pairs for larger room)
   const fixtureMat = new THREE.MeshPhongMaterial({ color: 0xeeeee0, emissive: 0xffffcc, emissiveIntensity: 0.4 });
   const hangMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
-  [[-5, -6], [-5, 6], [5, -6], [5, 6]].forEach(([fx, fz]) => {
+  [[-7,-8],[-7,4],[-7,14],[7,-8],[7,4],[7,14]].forEach(([fx, fz]) => {
     scene.add(makeMesh([1.4, 0.08, 0.55], fixtureMat, [fx, h - 0.1, fz]));
     scene.add(makeMesh([0.04, 0.34, 0.04], hangMat, [fx, h - 0.38, fz]));
   });
@@ -436,14 +429,14 @@ function addWall(size, pos, mat) {
 
 // --- Blackboard ---
 function buildBlackboard() {
-  // Large wood frame — 15.6 wide × 6.2 tall, spans near-floor to near-ceiling
+  // Large wood frame — 21.6 wide × 7.0 tall
   const frameMat = new THREE.MeshPhongMaterial({ color: 0x5d3a1a });
-  scene.add(makeMesh([15.6, 6.2, 0.12], frameMat, [0, 3.4, -13.93]));
+  scene.add(makeMesh([21.6, 7.0, 0.12], frameMat, [0, 3.85, -16.93]));
 
   // Board surface — high-res canvas for crisp chalk text
   boardCanvas = document.createElement('canvas');
-  boardCanvas.width  = 2048;
-  boardCanvas.height = 800;
+  boardCanvas.width  = 3072;
+  boardCanvas.height = 1200;
   boardCtx = boardCanvas.getContext('2d');
   drawBoard([]);
 
@@ -455,37 +448,37 @@ function buildBlackboard() {
     emissiveIntensity: 0.45,
     shininess: 6
   });
-  boardMesh = makeMesh([15.0, 5.8, 0.05], boardMat, [0, 3.4, -13.89]);
+  boardMesh = makeMesh([21.0, 6.5, 0.05], boardMat, [0, 3.85, -16.89]);
   boardMesh.castShadow = false;
   scene.add(boardMesh);
 
-  // Chalk ledge (sits at base of board, board bottom now at y ≈ 0.5)
+  // Chalk ledge at base of board
   const ledgeMat = new THREE.MeshPhongMaterial({ color: 0x5d3a1a });
-  scene.add(makeMesh([15.6, 0.12, 0.20], ledgeMat, [0, 0.56, -13.85]));
+  scene.add(makeMesh([21.6, 0.12, 0.20], ledgeMat, [0, 0.62, -16.85]));
 
   // Chalks on ledge
   const chalkColors = [0xffffff, 0xffcc88, 0xff8888, 0x88ddff, 0xaaffaa, 0xffaaff];
   chalkColors.forEach((c, i) => {
     scene.add(makeMesh([0.07, 0.07, 0.55],
-      new THREE.MeshPhongMaterial({ color: c }), [-3.0 + i * 0.26, 0.66, -13.8]));
+      new THREE.MeshPhongMaterial({ color: c }), [-3.0 + i * 0.26, 0.72, -16.8]));
   });
 
   // Eraser
   scene.add(makeMesh([0.28, 0.1, 0.1],
-    new THREE.MeshPhongMaterial({ color: 0xcc8888 }), [5.5, 0.66, -13.8]));
+    new THREE.MeshPhongMaterial({ color: 0xcc8888 }), [5.5, 0.72, -16.8]));
 
   // Pointer stick (teacher tool)
   teacherPointer = new THREE.Group();
   const stick = makeMesh([0.05, 2.0, 0.05], new THREE.MeshPhongMaterial({ color: 0x7b3f00 }), [0, 0, 0]);
   const tip = makeMesh([0.08, 0.08, 0.08], new THREE.MeshPhongMaterial({ color: 0xff4444 }), [0, -1.0, 0]);
   teacherPointer.add(stick, tip);
-  teacherPointer.position.set(6.5, 3.4, -13.82);
+  teacherPointer.position.set(9.0, 3.85, -16.82);
   teacherPointer.visible = false;
   scene.add(teacherPointer);
 }
 
 function drawBoard(letters, highlight = -1) {
-  const W = 2048, H = 800;
+  const W = 3072, H = 1200;
   const ctx = boardCtx;
 
   // Rich dark-green chalkboard background
@@ -573,16 +566,11 @@ function drawBoard(letters, highlight = -1) {
 
     if (y + fontSize < 0 || y > H) { x += charW + 2; return; }
 
-    if (isHL) {
-      ctx.fillStyle = 'rgba(255,230,0,0.28)';
-      ctx.fillRect(x - 2, y - 1, charW + 4, fontSize + 2);
-    }
-
     ctx.font = `bold ${fontSize}px "Courier New", monospace`;
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillText(letter, x + 2, y + 2);
 
-    ctx.fillStyle = isHL ? '#fff176' : '#f0ede0';
+    ctx.fillStyle = '#f0ede0';
     ctx.fillText(letter, x, y);
 
     ctx.fillStyle = '#fffef8';
@@ -628,7 +616,7 @@ function buildTeacherDesk() {
   const darkMat  = new THREE.MeshPhongMaterial({ color: 0x7a4010, shininess: 10 });
   const blackMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
 
-  const tx = 0, tz = -9.5;
+  const tx = 0, tz = -13.5;
 
   // Desktop
   scene.add(makeMesh([2.6, 0.1, 1.1], woodMat, [tx, 0.85, tz]));
@@ -725,90 +713,90 @@ function buildWindowsAndDoor() {
   const frameMat    = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20 });
   const windowSills = new THREE.MeshPhongMaterial({ color: 0xe0e0d0 });
 
-  // Windows on left wall (room x=-10; z positions: -7, 0, 7)
-  [-7, 0, 7].forEach(wz => {
-    scene.add(makeMesh([0.14, 2.1, 1.6], frameMat, [-10.09, 3, wz]));
-    scene.add(makeMesh([0.06, 1.8, 1.3], glassMat, [-10.06, 3, wz]));
-    scene.add(makeMesh([0.2, 0.06, 1.7], windowSills, [-10.04, 2.04, wz]));
-    scene.add(makeMesh([0.08, 1.8, 0.04], frameMat, [-10.07, 3, wz]));
-    scene.add(makeMesh([0.08, 0.04, 1.3], frameMat, [-10.07, 3, wz]));
+  // Windows on left wall (room x=-13; z positions spread across d=34)
+  [-9, 0, 9].forEach(wz => {
+    scene.add(makeMesh([0.14, 2.1, 1.6], frameMat, [-13.09, 3.5, wz]));
+    scene.add(makeMesh([0.06, 1.8, 1.3], glassMat, [-13.06, 3.5, wz]));
+    scene.add(makeMesh([0.2, 0.06, 1.7], windowSills, [-13.04, 2.54, wz]));
+    scene.add(makeMesh([0.08, 1.8, 0.04], frameMat, [-13.07, 3.5, wz]));
+    scene.add(makeMesh([0.08, 0.04, 1.3], frameMat, [-13.07, 3.5, wz]));
   });
 
-  // Windows on right wall
-  [-4, 3, 10].forEach(wz => {
-    scene.add(makeMesh([0.14, 2.1, 1.6], frameMat, [10.09, 3, wz]));
-    scene.add(makeMesh([0.06, 1.8, 1.3], glassMat, [10.06, 3, wz]));
-    scene.add(makeMesh([0.2, 0.06, 1.7], windowSills, [10.04, 2.04, wz]));
+  // Windows on right wall (room x=+13)
+  [-6, 3, 12].forEach(wz => {
+    scene.add(makeMesh([0.14, 2.1, 1.6], frameMat, [13.09, 3.5, wz]));
+    scene.add(makeMesh([0.06, 1.8, 1.3], glassMat, [13.06, 3.5, wz]));
+    scene.add(makeMesh([0.2, 0.06, 1.7], windowSills, [13.04, 2.54, wz]));
   });
 
-  // Door at back (back wall at z=14)
+  // Door at back (back wall at z=17)
   const doorMat  = new THREE.MeshPhongMaterial({ color: 0x8B4513, shininess: 30 });
   const doorKnob = new THREE.MeshPhongMaterial({ color: 0xd4af37, shininess: 90 });
-  scene.add(makeMesh([1.0, 2.3, 0.12], doorMat, [6.5, 1.15, 14.06]));
-  scene.add(makeMesh([0.18, 0.18, 0.18], doorKnob, [5.88, 1.1, 14.06]));
+  scene.add(makeMesh([1.0, 2.3, 0.12], doorMat, [6.5, 1.15, 17.06]));
+  scene.add(makeMesh([0.18, 0.18, 0.18], doorKnob, [5.88, 1.1, 17.06]));
   const dfMat = new THREE.MeshPhongMaterial({ color: 0xf0e0c8 });
-  scene.add(makeMesh([0.12, 2.4, 0.14], dfMat, [5.96, 1.2, 14.07]));
-  scene.add(makeMesh([0.12, 2.4, 0.14], dfMat, [7.04, 1.2, 14.07]));
-  scene.add(makeMesh([1.2, 0.12, 0.14], dfMat, [6.5, 2.4, 14.07]));
+  scene.add(makeMesh([0.12, 2.4, 0.14], dfMat, [5.96, 1.2, 17.07]));
+  scene.add(makeMesh([0.12, 2.4, 0.14], dfMat, [7.04, 1.2, 17.07]));
+  scene.add(makeMesh([1.2, 0.12, 0.14], dfMat, [6.5, 2.4, 17.07]));
 }
 
 // --- Decorations ---
 function buildDecorations() {
-  // Clock on front wall left side (wall at z=-14)
+  // Clock on front wall left side (wall at z=-17)
   const clockMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 20 });
   const clockFace = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.06, 24), clockMat);
   clockFace.rotation.x = Math.PI / 2;
-  clockFace.position.set(-7.5, 4.8, -13.9);
+  clockFace.position.set(-11.5, 5.8, -16.9);
   scene.add(clockFace);
   const clockBorder = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.04, 8, 24), new THREE.MeshPhongMaterial({ color: 0x333333 }));
   clockBorder.rotation.x = Math.PI / 2;
-  clockBorder.position.set(-7.5, 4.8, -13.87);
+  clockBorder.position.set(-11.5, 5.8, -16.87);
   scene.add(clockBorder);
-  scene.add(makeMesh([0.04, 0.26, 0.02], new THREE.MeshPhongMaterial({ color: 0x111111 }), [-7.5, 4.92, -13.84]));
-  scene.add(makeMesh([0.03, 0.20, 0.02], new THREE.MeshPhongMaterial({ color: 0x222222 }), [-7.62, 4.8, -13.84]));
+  scene.add(makeMesh([0.04, 0.26, 0.02], new THREE.MeshPhongMaterial({ color: 0x111111 }), [-11.5, 5.92, -16.84]));
+  scene.add(makeMesh([0.03, 0.20, 0.02], new THREE.MeshPhongMaterial({ color: 0x222222 }), [-11.62, 5.8, -16.84]));
 
   // Alphabet poster on right side of front wall
   const posterMat = new THREE.MeshPhongMaterial({ color: 0xfffde7 });
-  scene.add(makeMesh([2.5, 1.8, 0.04], posterMat, [7.5, 3.8, -13.9]));
+  scene.add(makeMesh([2.5, 1.8, 0.04], posterMat, [11.0, 5.5, -16.9]));
 
-  // Bookshelf on left wall (wall at x=-10)
+  // Bookshelf on left wall (wall at x=-13)
   const shelfMat = new THREE.MeshPhongMaterial({ color: 0x8B5E3C });
-  scene.add(makeMesh([0.12, 2.5, 1.6], shelfMat, [-9.9, 1.5, -4]));
-  scene.add(makeMesh([0.06, 0.06, 1.6], shelfMat, [-9.87, 0.6, -4]));
-  scene.add(makeMesh([0.06, 0.06, 1.6], shelfMat, [-9.87, 1.4, -4]));
-  scene.add(makeMesh([0.06, 0.06, 1.6], shelfMat, [-9.87, 2.2, -4]));
+  scene.add(makeMesh([0.12, 2.5, 1.6], shelfMat, [-12.9, 1.5, -4]));
+  scene.add(makeMesh([0.06, 0.06, 1.6], shelfMat, [-12.87, 0.6, -4]));
+  scene.add(makeMesh([0.06, 0.06, 1.6], shelfMat, [-12.87, 1.4, -4]));
+  scene.add(makeMesh([0.06, 0.06, 1.6], shelfMat, [-12.87, 2.2, -4]));
   const bookColors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c];
   bookColors.forEach((c, i) => {
-    scene.add(makeMesh([0.06, 0.65, 0.14], new THREE.MeshPhongMaterial({ color: c }), [-9.86, 1.05, -4.5 + i * 0.22]));
+    scene.add(makeMesh([0.06, 0.65, 0.14], new THREE.MeshPhongMaterial({ color: c }), [-12.86, 1.05, -4.5 + i * 0.22]));
   });
 
-  // Notice board on back wall (z=14)
+  // Notice board on back wall (z=17)
   const boardBg = new THREE.MeshPhongMaterial({ color: 0xd4a26b });
-  scene.add(makeMesh([3, 1.8, 0.06], boardBg, [-4, 3.5, 13.92]));
+  scene.add(makeMesh([3, 1.8, 0.06], boardBg, [-4, 3.5, 16.92]));
   const boardFrame = new THREE.MeshPhongMaterial({ color: 0x7a4010 });
-  scene.add(makeMesh([3.1, 0.08, 0.08], boardFrame, [-4, 4.45, 13.93]));
-  scene.add(makeMesh([3.1, 0.08, 0.08], boardFrame, [-4, 2.62, 13.93]));
+  scene.add(makeMesh([3.1, 0.08, 0.08], boardFrame, [-4, 4.45, 16.93]));
+  scene.add(makeMesh([3.1, 0.08, 0.08], boardFrame, [-4, 2.62, 16.93]));
   [[0.6, 3.2], [0.6, 0.8], [0.35, 2.0]].forEach(([ph, pw]) => {
-    scene.add(makeMesh([pw, ph, 0.02], new THREE.MeshPhongMaterial({ color: 0xffffff }), [-4 + (Math.random() - 0.5) * 1.5, 3.4 + (Math.random() - 0.5) * 0.8, 13.95]));
+    scene.add(makeMesh([pw, ph, 0.02], new THREE.MeshPhongMaterial({ color: 0xffffff }), [-4 + (Math.random() - 0.5) * 1.5, 3.4 + (Math.random() - 0.5) * 0.8, 16.95]));
   });
 
-  // Plant in back corner (z=13)
+  // Plant in back corner (z=16)
   const potMat = new THREE.MeshPhongMaterial({ color: 0xc0632a });
-  scene.add(makeMesh([0.3, 0.35, 0.3], potMat, [-9.5, 0.175, 13]));
+  scene.add(makeMesh([0.3, 0.35, 0.3], potMat, [-12.5, 0.175, 16]));
   const stemMat = new THREE.MeshPhongMaterial({ color: 0x2e7d32 });
   [0, 0.3, 0.6].forEach(h => {
     const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), stemMat);
-    leaf.position.set(-9.5 + (h === 0 ? 0 : (h === 0.3 ? -0.12 : 0.1)), 0.42 + h, 13);
+    leaf.position.set(-12.5 + (h === 0 ? 0 : (h === 0.3 ? -0.12 : 0.1)), 0.42 + h, 16);
     scene.add(leaf);
   });
 
   // "WELCOME" mat at door
   scene.add(makeMesh([0.8, 0.02, 0.5], new THREE.MeshPhongMaterial({ color: 0x4caf50 }), [6.5, 0.01, 13.3]));
 
-  // Row number signs on desk ends
+  // Row number signs on desk ends — z positions must match SEATS rows (-8, -4, 0, 4)
   ['1', '2', '3', '4'].forEach((n, i) => {
-    const sign = makeTextSprite(`Row ${n}`, 0.5);
-    sign.position.set(-9.5, 1.2, -3 + i * 4.5);
+    const sign = makeTextSprite(`Row ${n}`, 1.1);
+    sign.position.set(-11.5, 1.5, -8 + i * 4);
     scene.add(sign);
   });
 }
@@ -1349,8 +1337,8 @@ function getOrCreateStudentAvatar(id, name, seat) {
   }
 
   // Name label on chair back (scale compensates for 2.1× group scale)
-  const label = makeTextSprite(name, 0.35);
-  label.position.set(0, 0.71, 0.17);
+  const label = makeTextSprite(name, 0.55);
+  label.position.set(0, 0.78, 0.17);
   group.add(label);
 
   scene.add(group);
@@ -1405,7 +1393,7 @@ function makeTextSprite(text, scale = 1) {
   ctx.stroke();
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 56px "Segoe UI", sans-serif';
+  ctx.font = 'bold 72px "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 256, 64);
